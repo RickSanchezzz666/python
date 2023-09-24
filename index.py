@@ -90,6 +90,18 @@ class Attack:
         self.__damage = damage
 
 
+class Spot:
+    __spotted = False
+
+    def get_spot_status(self):
+        return self.__spotted
+    
+    def set_spot_status(self, spot=True):
+        self.__spotted = spot
+    
+    def __init__(self, spot=False):
+        self.__spotted = spot
+
 def generate_plane():
     random_value = random.randint(0, 100)
 
@@ -139,17 +151,19 @@ def generate_plane():
 def generate_base():
     random_value = random.randint(101, 111)
 
-    class Base(Health, Name, Position):
+    class Base(Health, Name, Position, Spot):
         def __init__(
             self,
             max_health=250,
             x=random.randint(-10, 10),
             y=random.randint(-10, 10),
             move_speed=0,
+            spot=False
         ):
             Health.__init__(self, max_health)
             Name.__init__(self, id=random_value, name="base")
             Position.__init__(self, x, y, move_speed)
+            Spot.__init__(self, spot)
 
     return Base
 
@@ -198,7 +212,7 @@ while True:
         if base.get_health() == 0:
             destroyed_bases.append(base)
 
-    if len(destroyed_bases) >= (bases_num - 1):
+    if len(destroyed_bases) == bases_num:
         print('Every Base was destroyed. The game is Completed!')
         break
             
@@ -209,33 +223,71 @@ while True:
                 print(
                     f"{plane.get_name()} : {plane.get_health()} ♥️ : {plane.get_position()} - Last Plane Standing!"
                 )
+                break
         break
-
-    revealed_bases = []
 
     for plane in planes:
             
         plane_id = plane.get_id()
 
-        if plane_id <= 40:
-            def create_attack_target():
-                attack_target = random.choice(planes)
-                if attack_target.get_health() == 0:
-                    create_attack_target()
-                return attack_target
-
-            plane.attack(create_attack_target())
-        elif 40 < plane_id <= 80:
-            def create_attack_target():
-                attack_target = random.choice(bases)
-                if attack_target.get_health() == 0:
-                    create_attack_target()
-                return attack_target
-
-            plane.attack(create_attack_target())
+        if plane.get_health() == 0:
+            pass
         else:
-            def spot_the_base():
-                pass
+
+
+            if plane_id <= 40:
+                def create_attack_target():
+                    attack_target = random.choice(planes)
+                    if attack_target.get_health() == 0:
+                        create_attack_target()
+                    return attack_target
+
+                target = create_attack_target()
+
+                if target.get_id() == plane_id:
+                    pass
+                else:
+                    plane.attack(target)
+                
+            elif 40 < plane_id <= 80:
+                def create_attack_target():
+                    attack_target = random.choice(bases)
+                    if(len(destroyed_bases) >= bases_num):
+                        pass
+                    else:
+                        if attack_target.get_health() == 0:
+                            create_attack_target()
+                        return attack_target
+
+                target = create_attack_target()
+
+                if target.get_spot_status() == False:
+                    pass
+                else:
+                    plane.attack(target)
+            else:
+                def spot_the_base():
+                    spotted_base = random.choice(bases)
+                    status = spotted_base.get_spot_status()
+                    if status == True:
+                        spot_the_base()
+                    spotted_base.set_spot_status()
+
+                bases_revealed = False
+
+                for base in bases:
+                    status = base.get_spot_status()
+                    if status == False:
+                        bases_revealed = False
+                    else:
+                        bases_revealed = True
+
+                if bases_revealed == False:
+
+                    random_num = random.randint(0, 100)
+
+                    if random_num < 20:
+                        spot_the_base()
                 
 
     for plane in planes:
@@ -245,12 +297,20 @@ while True:
             print(
                 f"{plane.get_name()} : {plane.get_health()} ♥️ : {plane.get_position()}"
             )
+
+
+    base_position = 'Unknown'
     for base in bases:
         if base.get_health() == 0:
             print(f"{base.get_name()} : ass destroyed 💀 : {base.get_position()}")
         else:
+            status = base.get_spot_status()
+            if status == True:
+                base_position = base.get_position()
+            else:
+                base_position = 'Unknown'
             print(
-                f"{base.get_name()} : {base.get_health()} ♥️ : {base.get_position()}"
+                f"{base.get_name()} : {base.get_health()} ♥️ : {base_position}"
             )
     print("--------------------------------")
 
