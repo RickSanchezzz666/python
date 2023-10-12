@@ -209,22 +209,21 @@ class Database:
 
     @classmethod
     def getStats(self, sep = ','):
-        studentSpecialties = []
+        studentSpecialties = {}
         with open('students.csv', 'r') as file:
             students = file.readlines()
             for i in range(1, len(students)):
                 students[i] = students[i].split(sep)
-                students[i][4] = students[i][4][:-2]
-                for i in range(len(studentSpecialties)):
-                    if(students[i][4] == studentSpecialties[i]):
-                        pass
-                    else:
-                        studentSpecialties.append(students[i][4])
-            for j in range(len(studentSpecialties)):
-                for i in range(1, len(students)):
-                    if(students[i][4] == studentSpecialties[j]):
-                        studentSpecialties[j].append(int(students[i][3]))
-            print(studentSpecialties[1][2])
+                specialty = students[i][4][:-2]
+                if specialty in studentSpecialties:
+                    studentSpecialties[specialty].append(students[i][3])
+                else:
+                    studentSpecialties[specialty] = [students[i][3]]
+        for student, ages in studentSpecialties.items():
+            agesToCount = 0
+            for age in ages:
+                agesToCount += int(age)
+            print(f'Середній вік по спеціальності {student}: {int(agesToCount / len(ages))} років')
             
                         
 
