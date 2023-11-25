@@ -1,51 +1,66 @@
-import tkinter as tk
-import server
-import client
-import threading
+from selenium import webdriver
+import time
+from selenium.common.exceptions import NoSuchElementException, StaleElementReferenceException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from bs4 import BeautifulSoup
+import pandas as pd
+import requests
 
-root = tk.Tk()
+driver = webdriver.Chrome()
 
-root.geometry('800x600')
-root.configure(bg='#343541')
-root.title("Чат")
+driver.get('https://varta1.com.ua/archive/')
+time.sleep(2)
 
-def get_message():
-    message = messageInput.get()
-    if(len(message) > 0):
-        # client.send_message(message)
-        print('Text:', message)
-        messages_listbox.insert(tk.END, message)
-        messageInput.delete(0, tk.END)
-        messages_listbox.yview(tk.END)
+df = pd.DataFrame({'Date': [], 'Text': []})
 
-root.grid_rowconfigure(0, weight=1)
-root.grid_columnconfigure(0, weight=1)
+def update_df(date, text):
+    df.loc[len(df)] = {'Date': date, 'Text': f'{text}'}
+    df.to_csv('archives.csv', index=False)
 
-messages_listbox = tk.Listbox(root, bg='#343541', fg='white')
-scrollbar = tk.Scrollbar(root, command=messages_listbox.yview)
+dates_to_visit = []
 
-messages_listbox.config(yscrollcommand=scrollbar.set)
+try:
+    dates_to_visit = driver.find_elements(By.XPATH, '//a[contains(@href, "/archive/")]')
+    for date in dates_to_visit:
+        try:
+            parent_div = date.find_element(By.XPATH, './ancestor::div[contains(@class, "days")]')
+        except NoSuchElementException:
+            dates_to_visit.remove(date)
+except NoSuchElementException:
+    pass
 
-messages_listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+date_hrefs = [date.get_attribute('href') for date in dates_to_visit]
 
-messages_listbox.insert(tk.END, 'Your messages: ')
+try:
+    for date_href in date_hrefs:
+        articles = []
+        time.sleep(1)
+        driver.get(date_href)
+        time.sleep(2.5)
+        articles = driver.find_elements(By.XPATH, './/a[contains(@href, "/news/")]')
 
-messageLabel = tk.Label(root, text='Input your message!', bg='#343541', fg='white')
-messageLabel.pack(pady=(10, 0))
+        dates = driver.find_elements(By.XPATH, './/time[contains(@datetime, "2023")]')
 
-messageInput = tk.Entry(root, width=40)
-messageInput.pack(pady=10)
+        time_text = dates[1].text
 
-sendButton = tk.Button(root, text='Send Message', command=get_message)
-sendButton.pack()
+        for article in articles:
+            try:
+                href = article.get_attribute('href')
+                response = requests.get(href)
+                time.sleep(1)
+                if (response.status_code == 200):
+                    html = response.content
+                    soup = BeautifulSoup(html, 'html.parser')
+                    main_p_tags = soup.select('main[data-inited="1"] p')
+                    text = [tag.get_text() for tag in main_p_tags]
+                    update_df(time_text, text)
+            except StaleElementReferenceException:
+                pass
+except NoSuchElementException:
+    pass
 
-# def start():
-#     server.start_server()
+time.sleep(10)
 
-def start_server():
-    # server_thread = threading.Thread(target=start)
-    # server_thread.start()
-    root.mainloop()
-
-start_server()
+input('Нажми шось: ')
