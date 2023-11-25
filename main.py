@@ -49,11 +49,10 @@ try:
             try:
                 href = article.get_attribute('href')
                 response = requests.get(href)
-                time.sleep(1)
                 if (response.status_code == 200):
                     html = response.content
                     soup = BeautifulSoup(html, 'html.parser')
-                    main_p_tags = soup.select('main[data-inited="1"] p')
+                    main_p_tags = soup.select('main p')
                     text = [tag.get_text() for tag in main_p_tags]
                     update_df(time_text, text)
             except StaleElementReferenceException:
