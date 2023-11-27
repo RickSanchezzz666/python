@@ -4,14 +4,11 @@ from selenium.common.exceptions import NoSuchElementException, StaleElementRefer
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from bs4 import BeautifulSoup
 import pandas as pd
-import requests
-
 driver = webdriver.Chrome()
 
 driver.get('https://varta1.com.ua/archive/')
-time.sleep(2)
+time.sleep(1)
 
 df = pd.DataFrame({'Date': [], 'Text': []})
 
@@ -21,44 +18,38 @@ def update_df(date, text):
 
 dates_to_visit = []
 
-try:
-    dates_to_visit = driver.find_elements(By.XPATH, '//a[contains(@href, "/archive/")]')
-    for date in dates_to_visit:
-        try:
-            parent_div = date.find_element(By.XPATH, './ancestor::div[contains(@class, "days")]')
-        except NoSuchElementException:
-            dates_to_visit.remove(date)
-except NoSuchElementException:
-    pass
+dates = []
 
-date_hrefs = [date.get_attribute('href') for date in dates_to_visit]
+format_link = lambda year, month, day: f'https://varta1.com.ua/archive/{year}-{month}-{day}/'
 
-try:
-    for date_href in date_hrefs:
-        articles = []
-        time.sleep(1)
-        driver.get(date_href)
-        time.sleep(2.5)
-        articles = driver.find_elements(By.XPATH, './/a[contains(@href, "/news/")]')
+def get_data(date_to_visit, date):
+    try:
+            articles = []
+            driver.get(date_to_visit)
 
-        dates = driver.find_elements(By.XPATH, './/time[contains(@datetime, "2023")]')
+            articles = driver.find_elements(By.CSS_SELECTOR, "article.post > a[href]")
 
-        time_text = dates[1].text
+            for article in articles:
+                try:
+                    href = article.get_attribute('href')
+                    driver.get(href)
+                    main = driver.find_elements(By.CSS_SELECTOR, "main p")
+                    text = [p.text for p in main]
+                    driver.back()
+                    update_df(date, text)
+                except StaleElementReferenceException:
+                    pass
+    except NoSuchElementException:
+        pass
 
-        for article in articles:
-            try:
-                href = article.get_attribute('href')
-                response = requests.get(href)
-                if (response.status_code == 200):
-                    html = response.content
-                    soup = BeautifulSoup(html, 'html.parser')
-                    main_p_tags = soup.select('main p')
-                    text = [tag.get_text() for tag in main_p_tags]
-                    update_df(time_text, text)
-            except StaleElementReferenceException:
-                pass
-except NoSuchElementException:
-    pass
+for year in [2019, 2020, 2021, 2022, 2023]:
+    for month in [6]:
+        for day in [13]:
+            dates_to_visit.append(format_link(year, month, day))
+            dates.append(f'{year}-{month}-{day}')
+
+for i in range(len(dates_to_visit)):
+    get_data(dates_to_visit[i], dates[i])
 
 time.sleep(10)
 
